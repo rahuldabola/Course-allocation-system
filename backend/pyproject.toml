@@ -11,3 +11,6 @@ ignore = ["B008"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Make `from app...` resolve regardless of how pytest is invoked (bare
+# `pytest` doesn't prepend cwd to sys.path the way `python -m pytest` does).
+pythonpath = ["."]
