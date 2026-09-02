@@ -107,7 +107,7 @@ export default function AllocationPage() {
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td className="td text-slate-400 py-8 text-center" colSpan={6}>No allocations yet. Click "Run Allocation" to start.</td></tr>
+              <tr><td className="td text-slate-400 py-8 text-center" colSpan={6}>No allocations yet. Click &quot;Run Allocation&quot; to start.</td></tr>
             )}
           </tbody>
         </table>
