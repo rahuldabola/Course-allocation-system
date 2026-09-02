@@ -31,7 +31,8 @@ class Student(Base):
     __tablename__ = "students"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    roll_no: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)  # external Student ID
+    # external Student ID
+    roll_no: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     marks: Mapped[float] = mapped_column(nullable=False)
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id"), nullable=False)

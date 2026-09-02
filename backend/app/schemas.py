@@ -1,6 +1,5 @@
 """Pydantic request/response models."""
-from datetime import date, datetime
-from typing import Optional
+from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -24,7 +23,7 @@ class StudentCreate(BaseModel):
     name: str
     marks: float = Field(ge=0, le=100)
     category_code: str  # General/OBC/SC/ST
-    application_date: Optional[date] = None
+    application_date: date | None = None
     preferences: list[PreferenceIn] = Field(default_factory=list, max_length=3)
 
 
@@ -58,9 +57,9 @@ class CourseCreate(BaseModel):
 
 
 class CourseUpdate(BaseModel):
-    name: Optional[str] = None
-    total_seats: Optional[int] = Field(default=None, ge=0)
-    quotas: Optional[list[QuotaIn]] = None
+    name: str | None = None
+    total_seats: int | None = Field(default=None, ge=0)
+    quotas: list[QuotaIn] | None = None
 
 
 class QuotaOut(BaseModel):
@@ -118,7 +117,7 @@ class DashboardStats(BaseModel):
     total_unallocated: int
     course_stats: list[CourseStat]
     category_stats: list[CategoryStat]
-    highest_rejection_course: Optional[str]
+    highest_rejection_course: str | None
 
 
 # ---------- AI Assistant ----------
@@ -128,7 +127,7 @@ class AssistantQuery(BaseModel):
 
 class AssistantResponse(BaseModel):
     question: str
-    sql: Optional[str]
+    sql: str | None
     rows: list[dict]
     answer: str
     source: str  # 'llm' | 'fallback'

@@ -34,7 +34,10 @@ def stats(db: Session = Depends(get_db)):
     )
     # applicants per course (listed it as any preference)
     applicants_by_course = dict(
-        db.query(models.Preference.course_id, func.count(func.distinct(models.Preference.student_id)))
+        db.query(
+            models.Preference.course_id,
+            func.count(func.distinct(models.Preference.student_id)),
+        )
         .group_by(models.Preference.course_id)
         .all()
     )
