@@ -5,15 +5,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .database import Base, engine
 from .routers import allocation, assistant, courses, dashboard, students
 from .seed import ensure_categories
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create tables and base categories on startup (simple migration-free setup).
-    Base.metadata.create_all(bind=engine)
+    # Schema is owned by Alembic (see backend/migrations); run
+    # `alembic upgrade head` before starting the app (the Docker image and
+    # docker-compose do this automatically). Startup just seeds base categories.
     ensure_categories()
     yield
 

@@ -1,14 +1,15 @@
 """Seed helpers: base categories + sample dataset for demos.
 
-Run `python -m app.seed` to populate sample courses and students.
+Run `alembic upgrade head` first to create the schema, then
+`python -m app.seed` to populate sample courses and students.
 """
 from __future__ import annotations
 
 import random
 from datetime import date, timedelta
 
-from .database import Base, SessionLocal, engine
 from . import models
+from .database import SessionLocal
 
 CATEGORIES = [
     ("General", "General / Open"),
@@ -97,5 +98,4 @@ def seed_sample(n_students: int = 50, seed: int = 42):
 
 
 if __name__ == "__main__":
-    Base.metadata.create_all(bind=engine)
     seed_sample()
