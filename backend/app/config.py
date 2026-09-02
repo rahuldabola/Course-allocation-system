@@ -15,5 +15,9 @@ class Settings(BaseSettings):
     # Allow the Next.js dev server to call the API.
     cors_origins: str = "http://localhost:3000"
 
+    # Shared secret required (via X-API-Key) on write / expensive endpoints.
+    # Empty string disables auth — fine for local dev, set it for anything shared.
+    api_key: str = ""
+
 
 settings = Settings()

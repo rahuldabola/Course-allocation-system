@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
+from ..auth import require_api_key
 from ..database import get_db
 
 router = APIRouter(prefix="/courses", tags=["courses"])
@@ -41,7 +42,9 @@ def _apply_quotas(db: Session, course: models.Course, quotas: list[schemas.Quota
     ]
 
 
-@router.post("", response_model=schemas.CourseOut, status_code=201)
+@router.post(
+    "", response_model=schemas.CourseOut, status_code=201, dependencies=[Depends(require_api_key)]
+)
 def create_course(payload: schemas.CourseCreate, db: Session = Depends(get_db)):
     if db.query(models.Course).filter(models.Course.name == payload.name).first():
         raise HTTPException(409, f"Course '{payload.name}' already exists")
@@ -58,7 +61,9 @@ def list_courses(db: Session = Depends(get_db)):
     return [_serialize(c) for c in db.query(models.Course).order_by(models.Course.name).all()]
 
 
-@router.put("/{course_id}", response_model=schemas.CourseOut)
+@router.put(
+    "/{course_id}", response_model=schemas.CourseOut, dependencies=[Depends(require_api_key)]
+)
 def update_course(course_id: int, payload: schemas.CourseUpdate, db: Session = Depends(get_db)):
     course = db.get(models.Course, course_id)
     if not course:

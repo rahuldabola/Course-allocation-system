@@ -30,6 +30,7 @@ services:
       OLLAMA_URL: http://ollama:11434
       OLLAMA_MODEL: llama3.1
       CORS_ORIGINS: http://localhost:3000
+      API_KEY: ${API_KEY:-changeme-dev-key}
     ports:
       - "8000:8000"
     depends_on:
@@ -40,6 +41,7 @@ services:
     build: ./frontend
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_API_KEY: ${API_KEY:-changeme-dev-key}
     ports:
       - "3000:3000"
     depends_on:

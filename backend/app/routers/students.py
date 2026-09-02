@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
+from ..auth import require_api_key
 from ..database import get_db
 
 router = APIRouter(prefix="/students", tags=["students"])
@@ -17,7 +18,9 @@ def _get_category(db: Session, code: str) -> models.Category:
     return cat
 
 
-@router.post("", response_model=schemas.StudentOut, status_code=201)
+@router.post(
+    "", response_model=schemas.StudentOut, status_code=201, dependencies=[Depends(require_api_key)]
+)
 def register_student(payload: schemas.StudentCreate, db: Session = Depends(get_db)):
     if db.query(models.Student).filter(models.Student.roll_no == payload.roll_no).first():
         raise HTTPException(409, f"Student '{payload.roll_no}' already exists")
@@ -57,7 +60,7 @@ def list_students(db: Session = Depends(get_db)):
     return db.query(models.Student).order_by(models.Student.marks.desc()).all()
 
 
-@router.delete("/{student_id}", status_code=204)
+@router.delete("/{student_id}", status_code=204, dependencies=[Depends(require_api_key)])
 def delete_student(student_id: int, db: Session = Depends(get_db)):
     student = db.get(models.Student, student_id)
     if not student:

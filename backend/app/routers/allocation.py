@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..allocation import allocate_and_persist
+from ..auth import require_api_key
 from ..database import get_db
 
 router = APIRouter(prefix="/allocation", tags=["allocation"])
@@ -35,7 +36,9 @@ def _serialize_allocations(db: Session) -> list[schemas.AllocationOut]:
     return out
 
 
-@router.post("/run", response_model=schemas.AllocationRunResult)
+@router.post(
+    "/run", response_model=schemas.AllocationRunResult, dependencies=[Depends(require_api_key)]
+)
 def run(db: Session = Depends(get_db)):
     """(Re)compute allocation for all students. Idempotent."""
     allocate_and_persist(db)
