@@ -5,15 +5,22 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        brand: { 
-          DEFAULT: "#4f46e5", 
+        // One coherent indigo scale — DEFAULT/dark/light alias into it so
+        // both `brand` and `brand-{50..900}` utilities resolve everywhere.
+        brand: {
+          DEFAULT: "#4f46e5",
           dark: "#4338ca",
           light: "#eef2ff",
-          50: "#f5f3ff",
-          100: "#ede9fe",
-          200: "#ddd6fe",
-          600: "#7c3aed",
-          700: "#6d28d9",
+          50: "#eef2ff",
+          100: "#e0e7ff",
+          200: "#c7d2fe",
+          300: "#a5b4fc",
+          400: "#818cf8",
+          500: "#6366f1",
+          600: "#4f46e5",
+          700: "#4338ca",
+          800: "#3730a3",
+          900: "#312e81",
         },
       },
       animation: {
