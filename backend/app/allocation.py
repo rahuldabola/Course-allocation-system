@@ -60,8 +60,10 @@ class _CourseState:
 
 
 def _merit_key(s: StudentInput):
-    # Higher marks first (negate), then earlier application date first.
-    return (-s.marks, s.application_date)
+    # Higher marks first (negate), then earlier application date, then earlier
+    # registration (id). The final key makes the order total, so results never
+    # depend on the order rows happen to come back from the database.
+    return (-s.marks, s.application_date, s.id)
 
 
 def run_allocation(
@@ -69,7 +71,8 @@ def run_allocation(
 ) -> list[AllocationResult]:
     """Allocate each student to at most one course following business rules:
 
-    1. Higher marks -> higher priority; ties broken by earlier application date.
+    1. Higher marks -> higher priority; ties broken by earlier application date,
+       then by earlier registration (student id).
     2. Reservation: open seats are merit-based; reserved seats guarantee a floor
        per category. Reserved-category students take an open seat when available,
        otherwise a reserved seat of their own category.
