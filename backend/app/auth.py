@@ -1,22 +1,52 @@
-"""API-key auth dependency for state-changing / expensive endpoints.
+"""Authentication & authorization dependencies.
 
-Design: a single shared key (`API_KEY`), sent as `X-API-Key`, checked with a
-constant-time comparison. Simple by design for a project this size — no user
-accounts, sessions, or roles. If `API_KEY` is unset, auth is disabled (open
-dev mode) so `docker compose up` keeps working out of the box; set it to
-require the header in any shared/deployed environment.
+Clients authenticate with `POST /auth/login` and send the returned JWT as
+`Authorization: Bearer <token>`. Every data endpoint requires a signed-in user;
+state-changing endpoints additionally require the `admin` role.
 """
+
 from __future__ import annotations
 
-import hmac
+import jwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.orm import Session
 
-from fastapi import Header, HTTPException
+from . import models
+from .database import get_db
+from .security import decode_access_token
 
-from .config import settings
+ROLES = ("admin", "viewer")
+
+_bearer = HTTPBearer(auto_error=False, description="JWT from POST /auth/login")
 
 
-def require_api_key(x_api_key: str | None = Header(default=None, alias="X-API-Key")) -> None:
-    if not settings.api_key:
-        return  # auth disabled (no key configured)
-    if not x_api_key or not hmac.compare_digest(x_api_key, settings.api_key):
-        raise HTTPException(status_code=401, detail="Missing or invalid X-API-Key header")
+def _unauthorized(detail: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=detail,
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    db: Session = Depends(get_db),
+) -> models.User:
+    if credentials is None:
+        raise _unauthorized("Not authenticated")
+    try:
+        payload = decode_access_token(credentials.credentials)
+        user_id = int(payload["sub"])
+    except (jwt.PyJWTError, KeyError, ValueError):
+        raise _unauthorized("Invalid or expired token") from None
+    user = db.get(models.User, user_id)
+    if user is None or not user.is_active:
+        raise _unauthorized("User not found or inactive")
+    return user
+
+
+def require_admin(user: models.User = Depends(get_current_user)) -> models.User:
+    if user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
+    return user
