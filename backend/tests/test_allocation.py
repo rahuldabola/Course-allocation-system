@@ -1,4 +1,5 @@
 """Unit tests for the pure allocation engine (no DB required)."""
+
 from datetime import date
 
 from app.allocation import CourseInput, StudentInput, run_allocation
