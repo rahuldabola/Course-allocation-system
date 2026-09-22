@@ -12,3 +12,21 @@ node_modules/
 # Misc
 .DS_Store
 *.log
+
+# Local databases / test artifacts
+*.db
+.coverage
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+
+# Deploy tooling
+.vercel
+.railway
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/
+frontend/e2e/.auth/
+*.tsbuildinfo
