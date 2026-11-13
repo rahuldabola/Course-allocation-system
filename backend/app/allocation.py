@@ -4,6 +4,7 @@ The core algorithm is written as a pure function (`run_allocation`) over plain
 dataclasses so it can be unit-tested without a database. `allocate_and_persist`
 is the thin DB-backed wrapper used by the API.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -60,8 +61,10 @@ class _CourseState:
 
 
 def _merit_key(s: StudentInput):
-    # Higher marks first (negate), then earlier application date first.
-    return (-s.marks, s.application_date)
+    # Higher marks first (negate), then earlier application date, then earlier
+    # registration (id). The final key makes the order total, so results never
+    # depend on the order rows happen to come back from the database.
+    return (-s.marks, s.application_date, s.id)
 
 
 def run_allocation(
@@ -69,7 +72,8 @@ def run_allocation(
 ) -> list[AllocationResult]:
     """Allocate each student to at most one course following business rules:
 
-    1. Higher marks -> higher priority; ties broken by earlier application date.
+    1. Higher marks -> higher priority; ties broken by earlier application date,
+       then by earlier registration (student id).
     2. Reservation: open seats are merit-based; reserved seats guarantee a floor
        per category. Reserved-category students take an open seat when available,
        otherwise a reserved seat of their own category.
@@ -106,21 +110,41 @@ def run_allocation(
 # --------------------------------------------------------------------------- #
 # DB-backed wrapper
 # --------------------------------------------------------------------------- #
-def allocate_and_persist(db) -> list[AllocationResult]:
-    """Load data from the DB, run allocation, and persist results idempotently."""
-    from .models import Allocation, Course, CourseQuota, Preference, Student
+# Arbitrary app-wide key for pg_advisory_xact_lock: serializes concurrent runs
+# so two admins clicking "Run" at once can't interleave delete/insert.
+_ALLOCATION_LOCK_KEY = 7_311_2025
 
-    students_rows = db.query(Student).all()
-    courses_rows = db.query(Course).all()
-    quotas_rows = db.query(CourseQuota).all()
-    prefs_rows = db.query(Preference).all()
+
+def allocate_and_persist(db, triggered_by: str | None = None):
+    """Load data from the DB, run allocation, and persist results idempotently.
+
+    Returns (results, run) where `run` is the AllocationRun audit row.
+    """
+    from sqlalchemy import text
+
+    from .models import (
+        Allocation,
+        AllocationRun,
+        Category,
+        Course,
+        CourseQuota,
+        Preference,
+        Student,
+    )
+
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": _ALLOCATION_LOCK_KEY})
+
+    code_by_category_id = {c.id: c.code for c in db.query(Category).all()}
 
     quota_by_course: dict[int, dict[str, int]] = {}
-    for q in quotas_rows:
-        quota_by_course.setdefault(q.course_id, {})[q.category.code] = q.reserved_seats
+    for q in db.query(CourseQuota).all():
+        quota_by_course.setdefault(q.course_id, {})[code_by_category_id[q.category_id]] = (
+            q.reserved_seats
+        )
 
     prefs_by_student: dict[int, list[tuple[int, int]]] = {}
-    for p in prefs_rows:
+    for p in db.query(Preference).all():
         prefs_by_student.setdefault(p.student_id, []).append((p.priority, p.course_id))
 
     students = [
@@ -128,32 +152,33 @@ def allocate_and_persist(db) -> list[AllocationResult]:
             id=s.id,
             marks=s.marks,
             application_date=s.application_date,
-            category_code=s.category.code,
+            category_code=code_by_category_id[s.category_id],
             preferences=[cid for _, cid in sorted(prefs_by_student.get(s.id, []))],
         )
-        for s in students_rows
+        for s in db.query(Student).all()
     ]
     courses = [
-        CourseInput(
-            id=c.id,
-            total_seats=c.total_seats,
-            reserved=quota_by_course.get(c.id, {}),
-        )
-        for c in courses_rows
+        CourseInput(id=c.id, total_seats=c.total_seats, reserved=quota_by_course.get(c.id, {}))
+        for c in db.query(Course).all()
     ]
 
     results = run_allocation(students, courses)
 
     # Idempotent: clear previous allocations, then persist the fresh run.
     db.query(Allocation).delete()
-    for r in results:
-        db.add(
-            Allocation(
-                student_id=r.student_id,
-                course_id=r.course_id,
-                seat_type=r.seat_type,
-                preference_rank=r.preference_rank,
-            )
+    db.add_all(
+        Allocation(
+            student_id=r.student_id,
+            course_id=r.course_id,
+            seat_type=r.seat_type,
+            preference_rank=r.preference_rank,
         )
+        for r in results
+    )
+    run = AllocationRun(
+        total_students=len(students), allocated=len(results), triggered_by=triggered_by
+    )
+    db.add(run)
     db.commit()
-    return results
+    db.refresh(run)
+    return results, run

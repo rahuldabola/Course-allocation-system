@@ -1,4 +1,5 @@
 """Unit tests for the pure allocation engine (no DB required)."""
+
 from datetime import date
 
 from app.allocation import CourseInput, StudentInput, run_allocation
@@ -85,3 +86,15 @@ def test_general_cannot_take_reserved_seat():
     students = [StudentInput(1, 90, date(2025, 1, 1), "General", [1])]
     res = run_allocation(students, courses)
     assert res == []
+
+
+def test_full_tie_broken_by_registration_order_regardless_of_input_order():
+    # Same marks and same application date: the earlier-registered student
+    # (lower id) wins, however the rows happen to be ordered. Regression test:
+    # the order used to depend on the DB's (unspecified) row order.
+    courses = [CourseInput(id=1, total_seats=1, reserved={})]
+    a = StudentInput(7, 80, date(2025, 1, 1), "General", [1])
+    b = StudentInput(3, 80, date(2025, 1, 1), "General", [1])
+    for students in ([a, b], [b, a]):
+        (winner,) = run_allocation(students, courses)
+        assert winner.student_id == 3

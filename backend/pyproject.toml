@@ -14,3 +14,12 @@ testpaths = ["tests"]
 # Make `from app...` resolve regardless of how pytest is invoked (bare
 # `pytest` doesn't prepend cwd to sys.path the way `python -m pytest` does).
 pythonpath = ["."]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/cli.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 90
